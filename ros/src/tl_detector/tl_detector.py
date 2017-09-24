@@ -39,8 +39,8 @@ class TLDetector(object):
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
         # todo fix: get_param fails with key not found exception
-        # config_string = rospy.get_param("/traffic_light_config")
-        # self.config = yaml.load(config_string)
+        config_string = rospy.get_param("/traffic_light_config")
+        self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
@@ -253,7 +253,7 @@ class TLDetector(object):
 
         """
         light = None
-        light_positions = self.config['light_positions']
+        light_positions = self.config['stop_line_positions']
         
         #TODO find the closest visible traffic light (if one exists)
         if self.waypoints and self.pose:

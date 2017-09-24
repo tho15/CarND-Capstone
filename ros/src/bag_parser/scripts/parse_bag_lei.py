@@ -45,21 +45,27 @@ def find_closest_light(car_pose, traffic_lights):
 def parse_rosbag():
   # INPUT_ROSBAG_PATH = "/data/carnd/CarND-Capstone/rosbag/test.bag"
   INPUT_ROSBAG_PATH = "/data/carnd/CarND-Capstone/rosbag/20170916_0_lei.bag"
+  # INPUT_ROSBAG_PATH = "/fig/home/lei/carnd/CarND-Capstone/20170922_0_lei.bag"
+
+  output_folder = "/fig/home/lei/carnd/CarND-Capstone/CarND-Capstone/tl_data/20170916_0_lei/"
+  # output_folder = "/fig/home/lei/carnd/CarND-Capstone/CarND-Capstone/tl_data/20170922_0_lei/"
+
   assert(os.path.exists(INPUT_ROSBAG_PATH))
+  assert(os.path.isdir(output_folder))
 
   TRAFFIC_LIGHT_CONFIG_PATH = \
     "/fig/home/lei/carnd/CarND-Capstone/CarND-Capstone/ros" \
     + "/src/tl_detector/sim_traffic_light_config.yaml"
   assert(os.path.exists(TRAFFIC_LIGHT_CONFIG_PATH))
 
-  output_folder = "/fig/home/lei/carnd/CarND-Capstone/CarND-Capstone/tl_data/20170916_0_lei/"
-  assert(os.path.isdir(output_folder))
-
   DISTANCE_TO_TRAFFIC_LIGHT_LOWER_BOUND = 0
   DISTANCE_TO_TRAFFIC_LIGHT_UPPER_BOUND = 50
   assert (DISTANCE_TO_TRAFFIC_LIGHT_LOWER_BOUND >= 0)
   assert (DISTANCE_TO_TRAFFIC_LIGHT_UPPER_BOUND > \
           DISTANCE_TO_TRAFFIC_LIGHT_LOWER_BOUND)
+
+  # MSG_TIME_SYNCHRONIZATION_THRESHOLD = rospy.Duration.from_sec(0.05)
+  MSG_TIME_SYNCHRONIZATION_THRESHOLD = rospy.Duration.from_sec(0.1)
 
   image_folder_name = "images"
   image_folder = output_folder + image_folder_name + "/"
@@ -72,8 +78,6 @@ def parse_rosbag():
   IMAGE_TOPIC = '/image_color'
   TRAFFIC_LIGHT_TOPIC = '/vehicle/traffic_lights'
 
-  MSG_TIME_SYNCHRONIZATION_THRESHOLD = rospy.Duration.from_sec(0.02)
-
   TRAFFIC_LIGHT_RED = 0
   TRAFFIC_LIGHT_YELLOW = 1
   TRAFFIC_LIGHT_GREEN = 2
@@ -85,7 +89,7 @@ def parse_rosbag():
   with open(TRAFFIC_LIGHT_CONFIG_PATH, 'r') as traffic_light_conifg_file:
     traffic_light_config = yaml.load(traffic_light_conifg_file)
 
-  traffic_light_stop_positions_2d = traffic_light_config['light_positions']
+  traffic_light_stop_positions_2d = traffic_light_config['stop_line_positions']
 
   car_pose_msgs = []
   image_msgs = []
