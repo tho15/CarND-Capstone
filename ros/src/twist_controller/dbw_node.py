@@ -8,7 +8,6 @@ from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd
 from geometry_msgs.msg import TwistStamped, PoseStamped
 from styx_msgs.msg import Lane
 
-from pid import PID
 from cte import CTE
 from dbw_logger import DBWLogger
 from yaw_controller import YawController
@@ -71,7 +70,6 @@ class DBWNode(object):
         self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd', ThrottleCmd, queue_size=1)
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd', BrakeCmd, queue_size=1)
 
-        # TODO: Create `TwistController` object
         yaw_controller = YawController(wheel_base=wheel_base,
                                        steer_ratio=steer_ratio,
                                        min_speed=0.,
@@ -79,8 +77,6 @@ class DBWNode(object):
                                        max_steer_angle=max_steer_angle)
 
         self.controller = TwistController(yaw_controller, max_steer_angle, self.sample_time)
-
-        # TODO: Subscribe to all the topics you need to
 
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
         rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb, queue_size=1)
@@ -90,8 +86,8 @@ class DBWNode(object):
 
         self.loop()
 
-
     def dbw_enabled_cb(self, msg):
+        # todo: reset controllers
         self.dbw_enabled = msg.data
 
     @staticmethod

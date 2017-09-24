@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import rospy
-from std_msgs.msg import Int32
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped, Pose, Point
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
@@ -25,8 +24,8 @@ class TLDetector(object):
         self.camera_image = None
         self.lights = []
 
-        sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         '''
         /vehicle/traffic_lights provides you with the location of the traffic light in 3D map space and 
@@ -35,13 +34,13 @@ class TLDetector(object):
         simulator. When testing on the vehicle, the color state will not be available. You'll need to
         rely on the position of the light and the camera image to predict it.
         '''
-        sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
+        rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
+        rospy.Subscriber('/image_color', Image, self.image_cb)
 
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
 
-        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Point, queue_size=1)
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -50,6 +49,7 @@ class TLDetector(object):
         self.state = TrafficLight.UNKNOWN
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
+        self.last_wp_point = Point(-1, -1, -1)
         self.state_count = 0
         # self.dbg_flag = 0
 
@@ -84,7 +84,7 @@ class TLDetector(object):
         """
         self.has_image = True
         self.camera_image = msg
-        light_wp, state = self.process_traffic_lights()
+        light_wp, state, light_wp_point = self.process_traffic_lights()
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -98,10 +98,14 @@ class TLDetector(object):
         elif self.state_count >= STATE_COUNT_THRESHOLD:
             self.last_state = self.state
             light_wp = light_wp if state == TrafficLight.RED else -1
+            light_wp_point = light_wp_point if state == TrafficLight.RED else Point(-1, -1, -1)
             self.last_wp = light_wp
-            self.upcoming_red_light_pub.publish(Int32(light_wp))
+            self.last_wp_point = light_wp_point
+
+            self.upcoming_red_light_pub.publish(light_wp_point)
         else:
-            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            self.upcoming_red_light_pub.publish(self.last_wp_point)
+
         self.state_count += 1
 
     def get_closest_waypoint(self, pose):
@@ -144,7 +148,7 @@ class TLDetector(object):
                 ds = t
                 wy_id = w_i
 
-        return wy_id
+        return wy_id, self.waypoints.waypoints[wy_id].pose.pose.position
 
     def project_to_image_plane(self, point_in_world):
         """Project point from 3D world coordinates to 2D camera image location
@@ -263,17 +267,17 @@ class TLDetector(object):
             # TODO: call get_light_state(light)
             if ds < 50:
                 light_pose = copy.deepcopy(self.lights[li].pose.pose)
-                lwp = self.get_closest_waypoint(light_pose)
+                lwp, lwp_point = self.get_closest_waypoint(light_pose)
                 state = self.lights[li].state
                 # print "light waypoint is ", lwp, " state ", state
-                return lwp, state
+                return lwp, state, lwp_point
 
         """if light:
             state = self.get_light_state(light)
             return light_wp, state
         self.waypoints = None
         """
-        return -1, TrafficLight.UNKNOWN
+        return -1, TrafficLight.UNKNOWN, Point(-1, -1, -1)
 
 
 if __name__ == '__main__':

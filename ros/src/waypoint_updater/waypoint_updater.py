@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Point
 from styx_msgs.msg import Lane, Waypoint
 
 import math
+
+from waypoint_updater_logger import WaypointUpdaterLogger
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -27,13 +29,14 @@ LOOKAHEAD_WPS = 200  # Number of waypoints we will publish. You can change this 
 class WaypointUpdater(object):
     def __init__(self):
         self.track_waypoints = None
+        self.next_traffic_light = None
+        self.logger = WaypointUpdaterLogger(self, rate=1)
 
         rospy.init_node('waypoint_updater')
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
-
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        rospy.Subscriber('/traffic_waypoint', Point, self.traffic_cb, queue_size=1)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
@@ -62,8 +65,9 @@ class WaypointUpdater(object):
         if self.track_waypoints is None:
             self.track_waypoints = waypoints
 
-    def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
+    def traffic_cb(self, next_traffic_light):
+        self.next_traffic_light = next_traffic_light
+        self.logger.log()
         pass
 
     def obstacle_cb(self, msg):
