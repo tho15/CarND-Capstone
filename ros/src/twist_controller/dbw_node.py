@@ -87,8 +87,10 @@ class DBWNode(object):
         self.loop()
 
     def dbw_enabled_cb(self, msg):
-        # todo: reset controllers
         self.dbw_enabled = msg.data
+
+        if self.dbw_enabled:
+            self.controller.reset()
 
     @staticmethod
     def compute_absolute_velocity(velocity_vector):
