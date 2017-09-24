@@ -72,7 +72,10 @@ def get_model(input_shape, output_size):
   model.add(Activation('softmax'))
 
   adam = Adam(lr=0.0001)
-  model.compile(optimizer=adam, loss="mse")
+  model.compile(
+    optimizer=adam,
+    loss="categorical_crossentropy",
+    metrics=['accuracy'])
 
   return model
 
@@ -157,7 +160,7 @@ if __name__ == "__main__":
   input_shape = [600, 800, 3]
   output_size = 3
 
-  BATCH_SIZE = 32
+  BATCH_SIZE = 16
   samples_per_epoch = training_dataset_size
   nb_epoch = 50
   nb_val_samples = validation_dataset_size
