@@ -10,13 +10,15 @@ class WaypointUpdaterLogger:
         self.last_time_logged = self.current_time()
 
     def log(self):
-        if not self.should_log():
+        if not self.should_log() or not self.waypoint_updater.track_waypoints.waypoints:
             return
 
         self.last_time_logged = self.current_time()
 
-        line1 = 'light: {}'.format(
-            self.waypoint_updater.next_traffic_light
+        line1 = 'stop waypoint index: {}; stop waypoint: {}'.format(
+            self.waypoint_updater.stop_waypoint_index,
+            self.waypoint_updater.track_waypoints.waypoints[
+                self.waypoint_updater.stop_waypoint_index].pose.pose.position
         ).replace('\n', ' ')
 
         line0 = '--- waypoint_updater node '

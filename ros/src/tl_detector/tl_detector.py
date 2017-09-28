@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import rospy
+from std_msgs.msg import Int32
 from geometry_msgs.msg import PoseStamped, Pose, Point
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
@@ -40,7 +41,7 @@ class TLDetector(object):
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
 
-        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Point, queue_size=1)
+        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -49,7 +50,6 @@ class TLDetector(object):
         self.state = TrafficLight.UNKNOWN
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
-        self.last_wp_point = Point(-1, -1, -1)
         self.state_count = 0
         # self.dbg_flag = 0
 
@@ -84,7 +84,7 @@ class TLDetector(object):
         """
         self.has_image = True
         self.camera_image = msg
-        light_wp, state, light_wp_point = self.process_traffic_lights()
+        light_wp, state = self.process_traffic_lights()
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -98,13 +98,11 @@ class TLDetector(object):
         elif self.state_count >= STATE_COUNT_THRESHOLD:
             self.last_state = self.state
             light_wp = light_wp if state == TrafficLight.RED else -1
-            light_wp_point = light_wp_point if state == TrafficLight.RED else Point(-1, -1, -1)
             self.last_wp = light_wp
-            self.last_wp_point = light_wp_point
 
-            self.upcoming_red_light_pub.publish(light_wp_point)
+            self.upcoming_red_light_pub.publish(Int32(light_wp))
         else:
-            self.upcoming_red_light_pub.publish(self.last_wp_point)
+            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
 
         self.state_count += 1
 
@@ -265,19 +263,19 @@ class TLDetector(object):
             li, ds, lx, ly = self.get_closest_lights(light_positions)
             # print "closest way light: ", li, ds, lx, ly
             # TODO: call get_light_state(light)
-            if ds < 50:
+            if ds < 100:
                 light_pose = copy.deepcopy(self.lights[li].pose.pose)
                 lwp, lwp_point = self.get_closest_waypoint(light_pose)
                 state = self.lights[li].state
                 # print "light waypoint is ", lwp, " state ", state
-                return lwp, state, lwp_point
+                return lwp, state
 
         """if light:
             state = self.get_light_state(light)
             return light_wp, state
         self.waypoints = None
         """
-        return -1, TrafficLight.UNKNOWN, Point(-1, -1, -1)
+        return -1, TrafficLight.UNKNOWN
 
 
 if __name__ == '__main__':
