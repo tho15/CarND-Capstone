@@ -29,7 +29,9 @@ LOOKAHEAD_WPS = 200  # Number of waypoints we will publish. You can change this 
 
 class WaypointUpdater(object):
     def __init__(self):
+        self.rate = 2
         self.track_waypoints = None
+        self.car_point = None
         self.stop_waypoint_index = -1
         self.current_linear_velocity = 0.0
         self.breaking_velocities = None
@@ -44,26 +46,39 @@ class WaypointUpdater(object):
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        rospy.spin()
+        self.loop()
+
+    def loop(self):
+        rate = rospy.Rate(self.rate)
+
+        while not rospy.is_shutdown():
+            if self.track_waypoints and self.car_point:
+                self.compute_and_publish_final_waypoints()
+            rate.sleep()
 
     def pose_cb(self, msg):
+        self.car_point = msg.pose.position
+
+    def waypoints_cb(self, waypoints):
         if self.track_waypoints is None:
-            return
+            self.track_waypoints = waypoints
 
-        # todo: no need to recompute final_waypoints on every call
+    def traffic_cb(self, stop_waypoint_index):
+        self.stop_waypoint_index = stop_waypoint_index.data
+        self.logger.log()
+        pass
 
+    def velocity_cb(self, message):
+        self.current_linear_velocity = message.twist.linear.x
+
+    def compute_and_publish_final_waypoints(self):
         # compute final waypoints
         waypoints = self.track_waypoints.waypoints
-        car_point = msg.pose.position
-        next_waypoint_index = WaypointUpdater.next_waypoint(waypoints, car_point)
+
+        next_waypoint_index = WaypointUpdater.next_waypoint(waypoints, self.car_point)
         should_break = self.stop_waypoint_index != -1
 
         if should_break and not self.breaking_velocities:
-            # distance_to_stop_point = WaypointUpdater.total_distance(
-            #     waypoints,
-            #     next_waypoint,
-            #     self.stop_waypoint_index)
-
             self.breaking_velocities = self.compute_breaking_velocities(
                 next_waypoint_index,
                 self.stop_waypoint_index)
@@ -97,22 +112,6 @@ class WaypointUpdater(object):
             breaking_velocities.append(velocity)
 
         return breaking_velocities
-
-    def waypoints_cb(self, waypoints):
-        if self.track_waypoints is None:
-            self.track_waypoints = waypoints
-
-    def traffic_cb(self, stop_waypoint_index):
-        self.stop_waypoint_index = stop_waypoint_index.data
-        self.logger.log()
-        pass
-
-    def obstacle_cb(self, msg):
-        # TODO: Callback for /obstacle_waypoint message. We will implement it later
-        pass
-
-    def velocity_cb(self, message):
-        self.current_linear_velocity = message.twist.linear.x
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
