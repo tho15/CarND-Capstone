@@ -3,7 +3,7 @@ import time
 
 import rospy
 
-DBW_LOG_ENABLED = False
+DBW_LOG_ENABLED = True
 
 
 class DBWLogger:
