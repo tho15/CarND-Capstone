@@ -39,8 +39,8 @@ class WaypointUpdater(object):
 
         rospy.init_node('waypoint_updater')
 
+        self.bw_disposable = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
         rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb, queue_size=1)
         rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb, queue_size=1)
 
@@ -62,6 +62,8 @@ class WaypointUpdater(object):
     def waypoints_cb(self, waypoints):
         if self.track_waypoints is None:
             self.track_waypoints = waypoints
+            self.bw_disposable.unregister()
+            self.bw_disposable = None
 
     def traffic_cb(self, stop_waypoint_index):
         self.stop_waypoint_index = stop_waypoint_index.data
