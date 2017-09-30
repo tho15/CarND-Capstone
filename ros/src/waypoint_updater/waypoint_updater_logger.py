@@ -2,6 +2,8 @@ import time
 import rospy
 import numpy as np
 
+WAYPOINT_UPDATER_LOG_ENABLED = False
+
 
 class WaypointUpdaterLogger:
     def __init__(self, waypoint_updater, rate):
@@ -24,10 +26,11 @@ class WaypointUpdaterLogger:
         line0 = '--- waypoint_updater node '
         line0 = line0 + ('-' * (np.max([len(line1)]) - len(line0)))
 
-        rospy.loginfo('')
-        rospy.loginfo(line0)
-        rospy.loginfo(line1)
-        rospy.loginfo('')
+        if WAYPOINT_UPDATER_LOG_ENABLED:
+            rospy.loginfo('')
+            rospy.loginfo(line0)
+            rospy.loginfo(line1)
+            rospy.loginfo('')
 
     def should_log(self):
         return self.current_time() - self.last_time_logged > self.logging_interval

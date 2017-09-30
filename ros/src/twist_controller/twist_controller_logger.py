@@ -2,6 +2,8 @@ import time
 import rospy
 import numpy as np
 
+TWIST_CONTROLLER_LOG_ENABLED = False
+
 
 class TwistControllerLogger:
     def __init__(self, twist_controller, rate):
@@ -31,10 +33,11 @@ class TwistControllerLogger:
         line0 = '--- dbw node - twist controller'
         line0 = line0 + ('-' * (np.max([len(line1), len(line2)]) - len(line0)))
 
-        rospy.loginfo('')
-        rospy.loginfo(line0)
-        rospy.loginfo(line1)
-        rospy.loginfo('')
+        if TWIST_CONTROLLER_LOG_ENABLED:
+            rospy.loginfo('')
+            rospy.loginfo(line0)
+            rospy.loginfo(line1)
+            rospy.loginfo('')
 
     def should_log(self):
         return self.current_time() - self.last_time_logged > self.logging_interval
