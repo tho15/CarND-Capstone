@@ -91,7 +91,7 @@ class WaypointUpdater(object):
         lane = Lane()
         for j in range(next_waypoint_index, next_waypoint_index + LOOKAHEAD_WPS):
             waypoint = waypoints[j]
-            target_linear_velocity = 10 \
+            target_linear_velocity = 5 \
                 if not should_break or j > self.stop_waypoint_index \
                 else self.breaking_velocities[j]
 
@@ -102,11 +102,11 @@ class WaypointUpdater(object):
 
     def compute_breaking_velocities(self, next_waypoint_next, stop_waypoint_index):
         current_v = self.current_linear_velocity
-        target_v = -2
+        target_v = -10
         breaking_velocities = []
 
         for i in range(stop_waypoint_index + 1):
-            velocity = 10 \
+            velocity = 5 \
                 if i < next_waypoint_next \
                 else current_v + ((target_v - current_v) *
                                   float(i - next_waypoint_next) / float(stop_waypoint_index - next_waypoint_next))
