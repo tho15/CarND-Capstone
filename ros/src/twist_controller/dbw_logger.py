@@ -1,6 +1,9 @@
-import time
-import rospy
 import numpy as np
+import time
+
+import rospy
+
+DBW_LOG_ENABLED = False
 
 
 class DBWLogger:
@@ -36,11 +39,12 @@ class DBWLogger:
         line0 = '--- dbw node '
         line0 = line0 + ('-' * (np.max([len(line1), len(line2)]) - len(line0)))
 
-        rospy.loginfo('')
-        rospy.loginfo(line0)
-        rospy.loginfo(line1)
-        rospy.loginfo(line2)
-        rospy.loginfo('')
+        if DBW_LOG_ENABLED:
+            rospy.loginfo('')
+            rospy.loginfo(line0)
+            rospy.loginfo(line1)
+            rospy.loginfo(line2)
+            rospy.loginfo('')
 
     def should_log(self):
         return self.current_time() - self.last_time_logged > self.logging_interval

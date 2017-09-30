@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import Int32
+from geometry_msgs.msg import PoseStamped, Point, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
 
 import math
+
+from waypoint_updater_logger import WaypointUpdaterLogger
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -26,49 +29,91 @@ LOOKAHEAD_WPS = 200  # Number of waypoints we will publish. You can change this 
 
 class WaypointUpdater(object):
     def __init__(self):
+        self.rate = 2
         self.track_waypoints = None
+        self.car_point = None
+        self.stop_waypoint_index = -1
+        self.current_linear_velocity = 0.0
+        self.breaking_velocities = None
+        self.logger = WaypointUpdaterLogger(self, rate=1)
 
         rospy.init_node('waypoint_updater')
 
+        self.bw_disposable = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
-
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb, queue_size=1)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb, queue_size=1)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        rospy.spin()
+        self.loop()
+
+    def loop(self):
+        rate = rospy.Rate(self.rate)
+
+        while not rospy.is_shutdown():
+            if self.track_waypoints and self.car_point:
+                self.compute_and_publish_final_waypoints()
+            rate.sleep()
 
     def pose_cb(self, msg):
-        if self.track_waypoints is None:
-            return
-
-        # todo: no need to recompute final_waypoints on every call
-
-        # compute final waypoints
-        waypoints = self.track_waypoints.waypoints
-        car_point = msg.pose.position
-        next_waypoint = WaypointUpdater.next_waypoint(waypoints, car_point)
-
-        lane = Lane()
-        for j in range(next_waypoint, next_waypoint + LOOKAHEAD_WPS):
-            waypoint = waypoints[j]
-            self.set_waypoint_velocity(waypoint, 10)
-            lane.waypoints.append(waypoint)
-
-        self.final_waypoints_pub.publish(lane)
+        self.car_point = msg.pose.position
 
     def waypoints_cb(self, waypoints):
         if self.track_waypoints is None:
             self.track_waypoints = waypoints
+            self.bw_disposable.unregister()
+            self.bw_disposable = None
 
-    def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
+    def traffic_cb(self, stop_waypoint_index):
+        self.stop_waypoint_index = stop_waypoint_index.data
+        self.logger.log()
         pass
 
-    def obstacle_cb(self, msg):
-        # TODO: Callback for /obstacle_waypoint message. We will implement it later
-        pass
+    def velocity_cb(self, message):
+        self.current_linear_velocity = message.twist.linear.x
+
+    def compute_and_publish_final_waypoints(self):
+        # compute final waypoints
+        waypoints = self.track_waypoints.waypoints
+
+        next_waypoint_index = WaypointUpdater.next_waypoint(waypoints, self.car_point)
+        should_break = self.stop_waypoint_index != -1
+
+        if should_break and not self.breaking_velocities:
+            self.breaking_velocities = self.compute_breaking_velocities(
+                next_waypoint_index,
+                self.stop_waypoint_index)
+
+        if not should_break:
+            self.breaking_velocities = None
+
+        lane = Lane()
+        for j in range(next_waypoint_index, next_waypoint_index + LOOKAHEAD_WPS):
+            waypoint = waypoints[j]
+            target_linear_velocity = 10 \
+                if not should_break or j > self.stop_waypoint_index \
+                else self.breaking_velocities[j]
+
+            self.set_waypoint_velocity(waypoint, target_linear_velocity)
+            lane.waypoints.append(waypoint)
+
+        self.final_waypoints_pub.publish(lane)
+
+    def compute_breaking_velocities(self, next_waypoint_next, stop_waypoint_index):
+        current_v = self.current_linear_velocity
+        target_v = -2
+        breaking_velocities = []
+
+        for i in range(stop_waypoint_index + 1):
+            velocity = 10 \
+                if i < next_waypoint_next \
+                else current_v + ((target_v - current_v) *
+                                  float(i - next_waypoint_next) / float(stop_waypoint_index - next_waypoint_next))
+
+            breaking_velocities.append(velocity)
+
+        return breaking_velocities
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
