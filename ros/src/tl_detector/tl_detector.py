@@ -263,7 +263,7 @@ class TLDetector(object):
             li, ds, lx, ly = self.get_closest_lights(light_positions)
             #print "closest way light: ", li, ds, lx, ly
             # TODO: call get_light_state(light)
-            if ds < 35:
+            if ds < 50:
             	light_pose = copy.deepcopy(self.lights[li].pose.pose)
                 light_pose.position.x = lx
                 light_pose.position.y = ly
