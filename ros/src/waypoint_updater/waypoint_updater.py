@@ -67,8 +67,6 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, stop_waypoint_index):
         self.stop_waypoint_index = stop_waypoint_index.data
-        self.logger.log()
-        pass
 
     def velocity_cb(self, message):
         self.current_linear_velocity = message.twist.linear.x
@@ -99,6 +97,7 @@ class WaypointUpdater(object):
             lane.waypoints.append(waypoint)
 
         self.final_waypoints_pub.publish(lane)
+        self.logger.log(next_waypoint_index, WaypointUpdater.total_distance)
 
     def compute_breaking_velocities(self, next_waypoint_next, stop_waypoint_index):
         current_v = self.current_linear_velocity
