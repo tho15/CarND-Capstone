@@ -265,6 +265,8 @@ class TLDetector(object):
             # TODO: call get_light_state(light)
             if ds < 35:
             	light_pose = copy.deepcopy(self.lights[li].pose.pose)
+                light_pose.position.x = lx
+                light_pose.position.y = ly
             	lwp = self.get_closest_waypoint(light_pose)
             	state = self.get_light_state(light)
             	true_state = self.lights[li].state
