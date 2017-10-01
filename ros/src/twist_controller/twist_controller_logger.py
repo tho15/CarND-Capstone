@@ -2,7 +2,7 @@ import time
 import rospy
 import numpy as np
 
-TWIST_CONTROLLER_LOG_ENABLED = False
+TWIST_CONTROLLER_LOG_ENABLED = True
 
 
 class TwistControllerLogger:

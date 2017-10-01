@@ -25,6 +25,9 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 200  # Number of waypoints we will publish. You can change this number
+TARGET_CRUISE_V = 10
+TARGET_STOP_V = -6.0
+BRAKING_DISTANCE = 35.0
 
 
 class WaypointUpdater(object):
@@ -72,11 +75,13 @@ class WaypointUpdater(object):
         self.current_linear_velocity = message.twist.linear.x
 
     def compute_and_publish_final_waypoints(self):
-        # compute final waypoints
         waypoints = self.track_waypoints.waypoints
-
         next_waypoint_index = WaypointUpdater.next_waypoint(waypoints, self.car_point)
-        should_break = self.stop_waypoint_index != -1
+
+        should_break = False
+        if self.stop_waypoint_index != -1 and self.stop_waypoint_index != next_waypoint_index:
+            distance = WaypointUpdater.total_distance(waypoints, next_waypoint_index, self.stop_waypoint_index)
+            should_break = distance < BRAKING_DISTANCE
 
         if should_break and not self.breaking_velocities:
             self.breaking_velocities = self.compute_breaking_velocities(
@@ -89,7 +94,7 @@ class WaypointUpdater(object):
         lane = Lane()
         for j in range(next_waypoint_index, next_waypoint_index + LOOKAHEAD_WPS):
             waypoint = waypoints[j]
-            target_linear_velocity = 5 \
+            target_linear_velocity = TARGET_CRUISE_V \
                 if not should_break or j > self.stop_waypoint_index \
                 else self.breaking_velocities[j]
 
@@ -101,16 +106,15 @@ class WaypointUpdater(object):
 
     def compute_breaking_velocities(self, next_waypoint_next, stop_waypoint_index):
         current_v = self.current_linear_velocity
-        target_v = -10
         breaking_velocities = []
 
         for i in range(stop_waypoint_index + 1):
-            velocity = 5 \
+            velocity = TARGET_CRUISE_V \
                 if i < next_waypoint_next \
-                else current_v + ((target_v - current_v) *
+                else current_v + ((TARGET_STOP_V - current_v) *
                                   float(i - next_waypoint_next) / float(stop_waypoint_index - next_waypoint_next))
 
-            breaking_velocities.append(velocity)
+            breaking_velocities.append(velocity if velocity > 0.0 else 0.0)
 
         return breaking_velocities
 
