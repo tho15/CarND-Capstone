@@ -25,6 +25,11 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 200  # Number of waypoints we will publish. You can change this number
+TARGET_CRUISE_V = 10
+TARGET_CREEP_SPEED = 1.0
+TARGET_STOP_V = -8.0
+BRAKING_DISTANCE = 40.0
+HARD_STOP_DISTANCE = 10.0
 
 
 class WaypointUpdater(object):
@@ -67,18 +72,18 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, stop_waypoint_index):
         self.stop_waypoint_index = stop_waypoint_index.data
-        self.logger.log()
-        pass
 
     def velocity_cb(self, message):
         self.current_linear_velocity = message.twist.linear.x
 
     def compute_and_publish_final_waypoints(self):
-        # compute final waypoints
         waypoints = self.track_waypoints.waypoints
-
         next_waypoint_index = WaypointUpdater.next_waypoint(waypoints, self.car_point)
-        should_break = self.stop_waypoint_index != -1
+
+        should_break = False
+        if self.stop_waypoint_index != -1 and self.stop_waypoint_index != next_waypoint_index:
+            distance = WaypointUpdater.total_distance(waypoints, next_waypoint_index, self.stop_waypoint_index)
+            should_break = distance < BRAKING_DISTANCE
 
         if should_break and not self.breaking_velocities:
             self.breaking_velocities = self.compute_breaking_velocities(
@@ -91,7 +96,7 @@ class WaypointUpdater(object):
         lane = Lane()
         for j in range(next_waypoint_index, next_waypoint_index + LOOKAHEAD_WPS):
             waypoint = waypoints[j]
-            target_linear_velocity = 5 \
+            target_linear_velocity = TARGET_CRUISE_V \
                 if not should_break or j > self.stop_waypoint_index \
                 else self.breaking_velocities[j]
 
@@ -99,17 +104,25 @@ class WaypointUpdater(object):
             lane.waypoints.append(waypoint)
 
         self.final_waypoints_pub.publish(lane)
+        self.logger.log(next_waypoint_index, WaypointUpdater.total_distance)
 
     def compute_breaking_velocities(self, next_waypoint_next, stop_waypoint_index):
         current_v = self.current_linear_velocity
-        target_v = -10
         breaking_velocities = []
 
         for i in range(stop_waypoint_index + 1):
-            velocity = 5 \
+            velocity = TARGET_CRUISE_V \
                 if i < next_waypoint_next \
-                else current_v + ((target_v - current_v) *
+                else current_v + ((TARGET_STOP_V - current_v) *
                                   float(i - next_waypoint_next) / float(stop_waypoint_index - next_waypoint_next))
+
+            if 0.0 < velocity < 1.0:
+                velocity = TARGET_CREEP_SPEED
+            elif velocity < 0.0:
+                velocity = 1.0
+
+            if WaypointUpdater.total_distance(self.track_waypoints.waypoints, i, stop_waypoint_index) < HARD_STOP_DISTANCE:
+                velocity = 0.0
 
             breaking_velocities.append(velocity)
 
@@ -127,7 +140,7 @@ class WaypointUpdater(object):
 
     @staticmethod
     def total_distance(waypoints, wp1, wp2):
-        dist = 0
+        dist = 0.0
 
         for i in range(wp1, wp2+1):
             dist += WaypointUpdater.distance(
